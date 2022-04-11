@@ -1,0 +1,43 @@
+---
+# This workflow integrates ShiftLeft NG SAST with GitHub
+# Visit https://docs.shiftleft.io for help
+name: ShiftLeft
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+jobs:
+  NextGen-Static-Analysis:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Download ShiftLeft CLI
+      run: |
+        curl https://cdn.shiftleft.io/download/sl > ${GITHUB_WORKSPACE}/sl && chmod a+rx ${GITHUB_WORKSPACE}/sl
+    - name: Extract branch name
+      shell: bash
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: extract_branch
+    - name: NextGen Static Analysis
+      run: |
+        pip install -r requirements.txt
+        ${GITHUB_WORKSPACE}/sl analyze --strict --wait --app dvpwa --tag branch=${{ github.head_ref || steps.extract_branch.outputs.branch }} --python $(pwd)
+      env:
+        SHIFTLEFT_ACCESS_TOKEN: ${{ secrets.SHIFTLEFT_ACCESS_TOKEN }}
+        
+      if:
+        ${{ hashFiles('requirements.txt') != '' }}
+    - name: Legacy Static Analysis
+      run: |
+        echo "Please update your `dvpwa` fork!"
+        ${GITHUB_WORKSPACE}/sl analyze --strict --wait --no-cpg --app dvpwa --tag branch=${{ github.head_ref || steps.extract_branch.outputs.branch }} --python $(pwd)
+      env:
+        SHIFTLEFT_ACCESS_TOKEN: ${{ secrets.SHIFTLEFT_ACCESS_TOKEN }}
+        
+      if:
+        ${{ hashFiles('requirements.txt') == '' }}
+         
+  
